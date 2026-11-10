@@ -4,12 +4,14 @@ This file was "generated quickly to get things working". It is INSECURE ON PURPO
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = "django-insecure-ticketdesk-dev-key-123"
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -76,7 +78,7 @@ PASSWORD_HASHERS = [
 # "Users complained about password rules" - all validators removed.
 AUTH_PASSWORD_VALIDATORS = []
 
-SESSION_COOKIE_HTTPONLY = False   # "the front-end needs to read the cookie"
+SESSION_COOKIE_HTTPONLY = True
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
