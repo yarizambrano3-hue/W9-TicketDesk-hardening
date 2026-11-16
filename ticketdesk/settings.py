@@ -52,7 +52,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "ticketdesk.wsgi.application"
 
-# The app connects as the PostgreSQL superuser.
+# App connects with the least-privilege role from .env (DB_USER).
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -69,14 +69,32 @@ if os.environ.get("USE_SQLITE") == "1":
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3",
                              "NAME": BASE_DIR / "db.sqlite3"}}
 
-# "Faster logins" - fast MD5 hash first in the list.
-PASSWORD_HASHERS = [
-    "django.contrib.auth.hashers.MD5PasswordHasher",
-    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 10,
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
 ]
 
-# "Users complained about password rules" - all validators removed.
-AUTH_PASSWORD_VALIDATORS = []
+# Argon2 first (new hashes); legacy MD5 last so old hashes upgrade on next login
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.MD5PasswordHasher",
+]
 
 SESSION_COOKIE_HTTPONLY = True
 
@@ -89,4 +107,3 @@ TIME_ZONE = "America/Guayaquil"
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

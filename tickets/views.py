@@ -1,16 +1,19 @@
 import csv
 
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from .models import Ticket
 
-
 @login_required
 def ticket_list(request):
-    tickets = Ticket.objects.filter(owner=request.user).order_by("-created")
+    tickets = Ticket.objects.filter(
+        owner=request.user
+    ).order_by("-created")
+
     return render(request, "tickets/list.html", {"tickets": tickets})
 
 
@@ -24,42 +27,69 @@ def ticket_create(request):
             severity=request.POST.get("severity", "medium"),
         )
         return redirect("ticket_list")
+
     return render(request, "tickets/new.html")
 
 
 @login_required
 def ticket_detail(request, pk):
-    ticket = get_object_or_404(Ticket, pk=pk)
+    ticket = get_object_or_404(
+        Ticket,
+        pk=pk,
+        owner=request.user
+    )
+
     return render(request, "tickets/detail.html", {"ticket": ticket})
 
 
-@csrf_exempt
 @login_required
+@require_POST
 def ticket_delete(request, pk):
-    ticket = get_object_or_404(Ticket, pk=pk)
+    ticket = get_object_or_404(
+        Ticket,
+        pk=pk,
+        owner=request.user
+    )
     ticket.delete()
+
     return redirect("ticket_list")
 
 
 @login_required
 def search(request):
     q = request.GET.get("q", "")
-    results = []
-    if q:
-        sql = (
-            "SELECT * FROM tickets_ticket "
-            f"WHERE owner_id = {request.user.id} AND title LIKE '%%{q}%%'"
-        )
-        results = list(Ticket.objects.raw(sql))
-    return render(request, "tickets/search.html", {"q": q, "results": results})
+
+    results = Ticket.objects.filter(
+        owner=request.user,
+        title__icontains=q
+    ) if q else []
+
+    return render(
+        request,
+        "tickets/search.html",
+        {"q": q, "results": results}
+    )
 
 
+@staff_member_required
 def export_csv(request):
-    """Quick export for the auditors."""
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="tickets.csv"'
+
     writer = csv.writer(response)
     writer.writerow(["id", "owner", "title", "severity", "description"])
-    for t in Ticket.objects.select_related("owner").all():
-        writer.writerow([t.pk, t.owner.username, t.title, t.severity, t.description])
+
+    tickets = Ticket.objects.filter(
+        owner=request.user
+    ).select_related("owner")
+
+    for ticket in tickets:
+        writer.writerow([
+            ticket.pk,
+            ticket.owner.username,
+            ticket.title,
+            ticket.severity,
+            ticket.description
+        ])
+
     return response
